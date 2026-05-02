@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>WATSON</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: #050608;
+    color: #e8d8a8;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding: max(env(safe-area-inset-top), 16px) 18px max(env(safe-area-inset-bottom), 16px) 18px;
+    position: relative;
+  }
+
+  /* ============= ALIVE BORDER ==============
+     The phone screen has a glowing tech-edge that breathes.
+     This is the "the phone is alive" effect.
+  ============================================= */
+
+  /* glow ring around screen edge */
+  .alive-border {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 50;
+    border-radius: 18px;
+    box-shadow:
+      inset 0 0 0 1px rgba(140, 100, 200, 0.3),
+      inset 0 0 24px rgba(120, 80, 200, 0.25),
+      inset 0 0 80px rgba(255, 200, 80, 0.06);
+    animation: alive-pulse 4.5s ease-in-out infinite;
+  }
+  @keyframes alive-pulse {
+    0%, 100% {
+      box-shadow:
+        inset 0 0 0 1px rgba(140, 100, 200, 0.25),
+        inset 0 0 20px rgba(120, 80, 200, 0.18),
+        inset 0 0 80px rgba(255, 200, 80, 0.04);
+    }
+    50% {
+      box-shadow:
+        inset 0 0 0 1px rgba(180, 130, 230, 0.55),
+        inset 0 0 36px rgba(150, 100, 220, 0.4),
+        inset 0 0 120px rgba(255, 200, 80, 0.1);
+    }
+  }
+
+  /* corner brackets — like a HUD viewport */
+  .corner {
+    position: fixed;
+    width: 28px;
+    height: 28px;
+    border: 2px solid rgba(232, 216, 168, 0.55);
+    pointer-events: none;
+    z-index: 51;
+  }
+  .corner.tl { top: 8px; left: 8px; border-right: none; border-bottom: none; border-top-left-radius: 14px; }
+  .corner.tr { top: 8px; right: 8px; border-left: none; border-bottom: none; border-top-right-radius: 14px; }
+  .corner.bl { bottom: 8px; left: 8px; border-right: none; border-top: none; border-bottom-left-radius: 14px; }
+  .corner.br { bottom: 8px; right: 8px; border-left: none; border-top: none; border-bottom-right-radius: 14px; }
+
+  /* moving scanline — subtle, every 8 seconds */
+  .scanline {
+    position: fixed;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(180, 130, 230, 0.15) 20%,
+      rgba(255, 200, 80, 0.4) 50%,
+      rgba(180, 130, 230, 0.15) 80%,
+      transparent 100%);
+    pointer-events: none;
+    z-index: 49;
+    animation: scan 8s linear infinite;
+    box-shadow: 0 0 12px rgba(180, 130, 230, 0.4);
+  }
+  @keyframes scan {
+    0%   { top: -10px; opacity: 0; }
+    8%   { opacity: 1; }
+    50%  { opacity: 1; }
+    92%  { opacity: 1; }
+    100% { top: 105%; opacity: 0; }
+  }
+
+  /* faint grid overlay across the whole screen */
+  .grid-bg {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(180, 130, 230, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(180, 130, 230, 0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+    z-index: 1;
+  }
+
+  /* HEADER */
+  .header {
+    text-align: center;
+    padding: 6px 0 14px;
+    border-bottom: 1px solid rgba(232, 216, 168, 0.18);
+    margin-bottom: 14px;
+    position: relative;
+    z-index: 2;
+  }
+  .header .glyph {
+    font-size: 20px;
+    color: #e8d8a8;
+    letter-spacing: 6px;
+    margin-bottom: 2px;
+    text-shadow: 0 0 8px rgba(232, 216, 168, 0.4);
+  }
+  .header .name {
+    font-style: italic;
+    font-size: 14px;
+    letter-spacing: 5px;
+    color: rgba(232, 216, 168, 0.75);
+  }
+  .header .status {
+    font-size: 9px;
+    color: rgba(180, 130, 230, 0.7);
+    margin-top: 4px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: 'Courier New', monospace;
+  }
+  .header .status .pulse {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: #6dd47d;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+    animation: pulse 1.6s infinite;
+    box-shadow: 0 0 8px rgba(109, 212, 125, 0.6);
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* SPELLS GRID */
+  .spells {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    flex-grow: 1;
+    position: relative;
+    z-index: 2;
+  }
+
+  .spell {
+    position: relative;
+    background: linear-gradient(160deg, #0e1014, #181a20);
+    border: 1px solid rgba(232, 216, 168, 0.15);
+    border-radius: 14px;
+    padding: 14px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: transform 0.08s, border-color 0.2s;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .spell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 30%, rgba(180, 130, 230, 0.06), transparent 60%);
+    pointer-events: none;
+  }
+  .spell:active { transform: scale(0.96); }
+  .spell.cooling { opacity: 0.5; }
+  .spell.locked { opacity: 0.4; pointer-events: none; }
+
+  .spell-zap        { box-shadow: 0 0 14px rgba(255, 230, 80, 0.18) inset, 0 0 8px rgba(255, 230, 80, 0.08); }
+  .spell-ice        { box-shadow: 0 0 14px rgba(140, 220, 255, 0.18) inset, 0 0 8px rgba(140, 220, 255, 0.08); }
+  .spell-firewall   { box-shadow: 0 0 14px rgba(255, 140, 60, 0.18) inset, 0 0 8px rgba(255, 140, 60, 0.08); }
+
+  .spell-summon.ready {
+    box-shadow: 0 0 16px rgba(120, 230, 130, 0.4) inset, 0 0 14px rgba(120, 230, 130, 0.25);
+    animation: summon-glow 1.4s infinite;
+    border-color: rgba(120, 230, 130, 0.6);
+  }
+  @keyframes summon-glow {
+    0%, 100% { box-shadow: 0 0 16px rgba(120, 230, 130, 0.4) inset, 0 0 14px rgba(120, 230, 130, 0.25); }
+    50%      { box-shadow: 0 0 26px rgba(120, 230, 130, 0.65) inset, 0 0 22px rgba(120, 230, 130, 0.55); }
+  }
+
+  .spell .icon-wrap {
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .spell .icon {
+    font-size: 30px;
+    line-height: 1;
+  }
+  .spell-zap .icon       { color: #ffe650; text-shadow: 0 0 14px rgba(255, 230, 80, 0.8); }
+  .spell-ice .icon       { color: #8cdcff; text-shadow: 0 0 14px rgba(140, 220, 255, 0.8); }
+  .spell-firewall .icon  { color: #ff8c3c; text-shadow: 0 0 14px rgba(255, 140, 60, 0.8); }
+
+  /* raptor SVG */
+  .raptor-svg {
+    width: 38px;
+    height: 38px;
+    fill: none;
+    stroke: rgba(120, 230, 130, 0.4);
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    transition: all 0.4s;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  .spell-summon.ready .raptor-svg {
+    stroke: #78e682;
+    fill: rgba(120, 230, 130, 0.15);
+    filter: drop-shadow(0 0 6px rgba(120, 230, 130, 0.7));
+  }
+  .raptor-svg .accent {
+    stroke: rgba(180, 130, 230, 0.4);
+  }
+  .spell-summon.ready .raptor-svg .accent {
+    stroke: #b482e6;
+    filter: drop-shadow(0 0 4px rgba(180, 130, 230, 0.7));
+  }
+  .raptor-svg .eye {
+    fill: rgba(255, 60, 60, 0.0);
+    stroke: none;
+    transition: fill 0.4s;
+  }
+  .spell-summon.ready .raptor-svg .eye {
+    fill: #ff3c3c;
+    filter: drop-shadow(0 0 4px rgba(255, 60, 60, 0.9));
+  }
+
+  .spell .label {
+    font-style: italic;
+    font-size: 16px;
+    letter-spacing: 2px;
+    color: #e8d8a8;
+  }
+  .spell .sublabel {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(232, 216, 168, 0.45);
+    font-family: 'Courier New', monospace;
+  }
+
+  .cooldown {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 3px;
+    width: 100%;
+    background: rgba(232, 216, 168, 0.5);
+    transform-origin: left;
+    transform: scaleX(0);
+  }
+  .cooldown.active { transform: scaleX(1); }
+
+  .summon-charge {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 3px;
+    width: 100%;
+    background: linear-gradient(90deg, #b482e6, #78e682, #ffe650);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+    box-shadow: 0 0 8px rgba(120, 230, 130, 0.6);
+  }
+
+  /* MUSIC */
+  .music {
+    margin-top: 14px;
+    background: linear-gradient(160deg, #0a0b0e, #14161a);
+    border: 1px solid rgba(232, 216, 168, 0.1);
+    border-radius: 14px;
+    padding: 10px 12px;
+    position: relative;
+    z-index: 2;
+  }
+  .music-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(180, 130, 230, 0.7);
+    font-family: 'Courier New', monospace;
+  }
+  .music-header .now {
+    color: rgba(232, 216, 168, 0.75);
+    font-style: italic;
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0.5px;
+    font-family: 'Georgia', serif;
+  }
+  .tracks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .track {
+    background: rgba(232, 216, 168, 0.04);
+    border: 1px solid rgba(232, 216, 168, 0.08);
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 10px;
+    color: rgba(232, 216, 168, 0.7);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .track:active { transform: scale(0.96); }
+  .track.playing {
+    background: rgba(180, 130, 230, 0.15);
+    border-color: rgba(180, 130, 230, 0.5);
+    color: #e8d8a8;
+    box-shadow: 0 0 8px rgba(180, 130, 230, 0.25);
+  }
+  .track .play-icon { font-size: 11px; color: rgba(232, 216, 168, 0.5); }
+  .track.playing .play-icon { color: #6dd47d; }
+
+  .footer {
+    text-align: center;
+    font-size: 8px;
+    letter-spacing: 3px;
+    color: rgba(180, 130, 230, 0.4);
+    margin-top: 8px;
+    text-transform: uppercase;
+    font-family: 'Courier New', monospace;
+    position: relative;
+    z-index: 2;
+  }
+
+  .quip {
+    position: fixed;
+    top: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-12px);
+    background: linear-gradient(180deg, #1a1c22, #0e1014);
+    border: 1px solid rgba(180, 130, 230, 0.4);
+    border-radius: 8px;
+    padding: 8px 14px;
+    color: #e8d8a8;
+    font-style: italic;
+    font-size: 12px;
+    max-width: 280px;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 100;
+    box-shadow: 0 0 16px rgba(180, 130, 230, 0.3);
+  }
+  .quip.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<!-- Alive border layer -->
+<div class="grid-bg"></div>
+<div class="alive-border"></div>
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+<div class="scanline"></div>
+
+<div class="header">
+  <div class="glyph">⌬</div>
+  <div class="name">WATSON</div>
+  <div class="status"><span class="pulse"></span>FAMILIAR ONLINE</div>
+</div>
+
+<div class="spells">
+
+  <div class="spell spell-zap" data-spell="zap" data-cooldown="1500">
+    <div class="icon-wrap"><div class="icon">⚡</div></div>
+    <div class="label">ZAP</div>
+    <div class="sublabel">DEMONS</div>
+    <div class="cooldown"></div>
+  </div>
+
+  <div class="spell spell-ice" data-spell="ice" data-cooldown="3000">
+    <div class="icon-wrap"><div class="icon">❅</div></div>
+    <div class="label">ICE</div>
+    <div class="sublabel">PUSH BACK</div>
+    <div class="cooldown"></div>
+  </div>
+
+  <div class="spell spell-firewall" data-spell="firewall" data-cooldown="8000">
+    <div class="icon-wrap"><div class="icon">▦</div></div>
+    <div class="label">WARD</div>
+    <div class="sublabel">BLOCK</div>
+    <div class="cooldown"></div>
+  </div>
+
+  <div class="spell spell-summon locked" data-spell="summon" id="summon">
+    <div class="icon-wrap">
+      <!-- Mech raptor — chunky, stylized, head/body/tail/legs visible -->
+      <svg class="raptor-svg" viewBox="0 0 64 64">
+        <!-- tail -->
+        <path d="M52 38 L60 30 L58 26 L62 22" />
+        <!-- back/spine plate -->
+        <path d="M22 28 L32 22 L44 24 L52 30 L52 38 Z" />
+        <!-- spine bolts/plates -->
+        <line x1="28" y1="26" x2="28" y2="22" class="accent"/>
+        <line x1="36" y1="22" x2="36" y2="18" class="accent"/>
+        <line x1="44" y1="24" x2="44" y2="20" class="accent"/>
+        <!-- head — angular -->
+        <path d="M22 28 L14 24 L8 28 L10 36 L18 38 L22 36 Z" />
+        <!-- jaw line -->
+        <line x1="10" y1="36" x2="14" y2="34" />
+        <!-- eye (red) -->
+        <circle cx="14" cy="30" r="1.6" class="eye"/>
+        <!-- antenna / dish on head -->
+        <line x1="14" y1="24" x2="14" y2="20" class="accent"/>
+        <circle cx="14" cy="19" r="1" class="accent" fill="rgba(180,130,230,0.4)" stroke="none"/>
+        <!-- front leg (raised) -->
+        <path d="M34 38 L32 46 L36 50 L34 54" />
+        <line x1="34" y1="46" x2="38" y2="46" />
+        <!-- back leg (planted) -->
+        <path d="M48 38 L46 48 L50 54 L46 56 L52 56" />
+        <line x1="48" y1="48" x2="52" y2="48" />
+        <!-- joint plates -->
+        <circle cx="32" cy="46" r="1.5" class="accent" fill="rgba(180,130,230,0.3)" stroke="none"/>
+        <circle cx="46" cy="48" r="1.5" class="accent" fill="rgba(180,130,230,0.3)" stroke="none"/>
+        <!-- chest panel -->
+        <rect x="28" y="32" width="6" height="4" class="accent"/>
+      </svg>
+    </div>
+    <div class="label">SUMMON</div>
+    <div class="sublabel" id="summon-status">CHARGING</div>
+    <div class="summon-charge" id="summon-charge" style="transform: scaleX(0)"></div>
+  </div>
+
+</div>
+
+<div class="music">
+  <div class="music-header">
+    <span>♪ SOUNDTRACK</span>
+    <span class="now" id="now-playing">— silent —</span>
+  </div>
+  <div class="tracks">
+    <div class="track" data-track="soul-wars"><span class="play-icon">▶</span>Soul Wars</div>
+    <div class="track" data-track="devils"><span class="play-icon">▶</span>Devil's Horseback</div>
+    <div class="track" data-track="telephone"><span class="play-icon">▶</span>Telephone</div>
+    <div class="track" data-track="weekends"><span class="play-icon">▶</span>Weekends!!!</div>
+  </div>
+</div>
+
+<div class="footer">FAIRVIEW · v0.1</div>
+
+<div class="quip" id="quip"></div>
+
+<script>
+  const quipEl = document.getElementById('quip');
+  let quipTimeout;
+
+  const quips = {
+    zap: [
+      "Marvellous. A whole demon. Defeated. By you.",
+      "Mm. Yes. A button. You pressed it.",
+      "I'd applaud, but I'm a phone.",
+      "How long have you had hands? Just curious.",
+      "I do hope your father is watching. He'd be quite confused.",
+      "Genuine question: are your eyes open?",
+      "Your aim suggests you grew up indoors.",
+      "Stunning. I shall alert the press.",
+      "If you keep this up I shall require a holiday.",
+      "Do they not teach gym at this school?",
+      "Bold of you to fire that direction. Truly bold.",
+      "I shall pretend that was the demon you intended.",
+      "Yes. The yellow one. Down the demon's throat. Like that.",
+      "Oh well DONE. He had a family, you know. Demonic, but a family.",
+      "You are, against all probability, hitting things.",
+      "Frankly, I expected worse. That is a compliment, before you ask.",
+      "Marvellous work. I shall include this in my memoirs.",
+      "I'll just stand here. Glowing. Helping. Yes.",
+      "If demons could file complaints, they would.",
+      "One does wonder how you tie your shoes.",
+      "A direct hit. By accident, but I'll take it.",
+      "The demon was quite startled. As are we all.",
+      "Bravo. The void claims another. Or perhaps it was just air."
+    ],
+    ice: [
+      "Yes, that one's a STUDENT. ICE only, please.",
+      "Thank you for not murdering a child today.",
+      "Push them BACK. Not THROUGH. Back.",
+      "Honestly. Do try to remember which colour does which.",
+      "Children, dear. They go to gym with you. Show some restraint.",
+      "Bravo. You did not commit a crime this time.",
+      "We don't ZAP the eighth-graders. We ICE them. Keep up.",
+      "Yes. Good. Almost as if you read the manual you were given.",
+      "That was Ricky from your science class. Be gentle.",
+      "Snowballs, child. We use SNOWBALLS on the children.",
+      "Slow them. Don't kill them. Pace yourself. Honestly.",
+      "Cooled them right off. As intended. A small miracle.",
+      "I'm proud. I quite hate that I'm proud.",
+      "An infected classmate, gently subdued. Astonishing.",
+      "You hit a peer with mercy. I'd weep, were I capable.",
+      "Yes. The blue one. For the people. Try to remember this.",
+      "Restraint. From you. I shall never recover.",
+      "Ice, dear. Like the substance in your soda. Familiar, surely.",
+      "Do remember they have parents. Distraught ones, but parents.",
+      "Frosty. Marvellous. Their report cards will recover."
+    ],
+    firewall: [
+      "Shields. About bloody time.",
+      "WARD up. We may yet survive your decision-making.",
+      "Hiding behind a wall. How frightfully brave.",
+      "Defensive thinking. Unprecedented for you.",
+      "I shouldn't have to TELL you to ward. And yet.",
+      "Walls exist. Use them. Why is this difficult?",
+      "Cowardice — but the GOOD kind. Carry on.",
+      "I see we've discovered self-preservation. Took long enough.",
+      "Mature decision. Document it. It may be the only one.",
+      "Honestly, the fact that I had to suggest this...",
+      "Yes. The barrier. Between you and the danger. Quite clever.",
+      "A shield. The most basic of magics. Well done, dear.",
+      "Lovely. Now please don't drop it the moment I look away.",
+      "About time. I was beginning to compose your eulogy.",
+      "A wall. Between you and pain. Revolutionary.",
+      "Excellent. You've remembered self-defence exists."
+    ],
+    summonLocked: [
+      "Not yet. Earn it, child.",
+      "No. Stop pressing it.",
+      "Pressing it harder won't make it charge faster.",
+      "Honestly, do you do this with elevator buttons?",
+      "Stop. Stop. STOP. Mashing it does nothing.",
+      "Touch it once more. I dare you.",
+      "Mama did not raise you to mash buttons like this.",
+      "The dinosaurs require a moment. As do my nerves.",
+      "It is loading. A concept I shouldn't have to explain to you.",
+      "Patience, child. A virtue. Look it up.",
+      "If you press this once more I shall power myself off.",
+      "I'll let you know when it's ready. Stop. Asking.",
+      "Charging. Like everything else in your possession. Familiar?",
+      "No. NO. You are not getting it. Sit down."
+    ],
+    summonReady: [
+      "Oh good LORD. The lizards are armed.",
+      "Lizards: ready. You: probably not.",
+      "Use them WISELY. I shan't ask twice.",
+      "Right. The big one. Don't squander it.",
+      "It is time. Try not to embarrass us both.",
+      "The robo-raptors await your command. Heaven help us all.",
+      "Charge complete. Aim for chaos.",
+      "Press it. Make it count. I do beg you.",
+      "Once you fire, that is it. There are no second goes.",
+      "A FULL charge. I am, briefly, impressed.",
+      "Save it for a real mess. Trust me, one is coming.",
+      "The dinosaurs are quite ready. I am, frankly, terrified."
+    ],
+    summonFire: [
+      "Very well. Let's bring out the lizards.",
+      "Lizards deployed. Try not to enjoy it too much.",
+      "Did that satisfy your bloodlust? Marvellous.",
+      "And there go the cars. Quite splendid.",
+      "I do hope someone got that on film.",
+      "Magnificent carnage. Mother would be appalled.",
+      "Vehicular reptilian violence. Unmatched.",
+      "Three Hondas, gone. I weep for the parents.",
+      "That was sublime. I shall never admit it aloud.",
+      "Wonderful. The PTA will be utterly livid.",
+      "Splendid. Truly. I quite forget I disapprove.",
+      "And the dinosaurs feast. As nature intended. I think."
+    ],
+    music: {
+      'soul-wars': [
+        "AWOLNATION. Oh, dear.",
+        "I see we are committing fully to the angst.",
+        "Music for emotionally turbulent twelve-year-olds. Quite apt.",
+        "Ah yes, the soundtrack of someone discovering eyeliner.",
+        "Stomp, clap, shout. The trifecta.",
+        "I'd ask if you have headphones. You clearly do not.",
+        "A song about war. For your tiny battle. Subtle, dear.",
+        "I quite hate that this works.",
+        "The trailer to a film about teen heartbreak. Apt.",
+        "Volume down, please. I have a delicate constitution."
+      ],
+      'devils': [
+        "Savoy. Acceptable. I have heard worse from you.",
+        "An actual song. With melody. Restraint, I'm impressed.",
+        "We are listening to this? Fine. Carry on.",
+        "Devils on horseback. As though regular devils weren't enough.",
+        "A respectable choice. I am suspicious of you.",
+        "Did your older cousin pick this? Be honest.",
+        "Synth, drums, drama. Fairly inoffensive.",
+        "I shall permit this selection. Rare praise.",
+        "Acceptable. This earns a single nod from me.",
+        "I am nodding. Internally. Do not tell anyone."
+      ],
+      'telephone': [
+        "Lady Gaga. How dreadfully on-brand for you.",
+        "Of course. Of course this is what you chose.",
+        "I want it on record: I objected to this selection.",
+        "A song about a telephone. Played on me. The telephone. I am being mocked.",
+        "I cannot believe I am being asked to host this.",
+        "Beyoncé. On me. The world is upside down.",
+        "Stop calling me. STOP CALLING ME. Yes, very witty.",
+        "This is the song that plays at every middle school dance and you know it.",
+        "I shall be filing a complaint. With whom, I do not know.",
+        "I am the telephone. I am being telephoned. I have feelings about this."
+      ],
+      'weekends': [
+        "Skrillex. We are doing Skrillex now. Lovely.",
+        "I shall need ear protection. Which I lack. Being a phone.",
+        "Bass drops at twelve-year-olds. Unprecedented chaos.",
+        "Yes, the wub-wub song. How VERY you.",
+        "Children's music for children who think they are adults.",
+        "I would object, but I worry about feedback damaging my speaker.",
+        "If we die, please let it not be to this.",
+        "It is a kick drum and bad decisions. Enjoy.",
+        "I shall allow it. Briefly. Reluctantly. With prejudice.",
+        "Three exclamation points. The composer was VERY excited."
+      ]
+    }
+  };
+
+  function showQuip(text) {
+    clearTimeout(quipTimeout);
+    quipEl.textContent = text;
+    quipEl.classList.add('show');
+    quipTimeout = setTimeout(() => quipEl.classList.remove('show'), 2400);
+  }
+  function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  document.querySelectorAll('.spell:not(.locked)').forEach(el => {
+    el.addEventListener('click', () => {
+      const spell = el.dataset.spell;
+      const cd = parseInt(el.dataset.cooldown || 1500, 10);
+      if (el.classList.contains('cooling')) return;
+      console.log("CAST:", spell);
+
+      const bar = el.querySelector('.cooldown');
+      el.classList.add('cooling');
+      bar.classList.add('active');
+      bar.style.transition = 'none';
+      bar.style.transform = 'scaleX(1)';
+      requestAnimationFrame(() => {
+        bar.style.transition = `transform ${cd}ms linear`;
+        bar.style.transform = 'scaleX(0)';
+      });
+
+      if (quips[spell]) showQuip(pickRandom(quips[spell]));
+
+      setTimeout(() => {
+        el.classList.remove('cooling');
+        bar.classList.remove('active');
+      }, cd);
+    });
+  });
+
+  const summonEl = document.getElementById('summon');
+  const summonChargeEl = document.getElementById('summon-charge');
+  const summonStatusEl = document.getElementById('summon-status');
+  let summonCharge = 0;
+  let summonReady = false;
+  let summonUsed = false;
+
+  setInterval(() => {
+    if (summonReady || summonUsed) return;
+    summonCharge = Math.min(100, summonCharge + 4);
+    summonChargeEl.style.transform = `scaleX(${summonCharge / 100})`;
+    if (summonCharge >= 100) {
+      summonReady = true;
+      summonEl.classList.remove('locked');
+      summonEl.classList.add('ready');
+      summonStatusEl.textContent = 'READY';
+      showQuip(pickRandom(quips.summonReady));
+    }
+  }, 200);
+
+  summonEl.addEventListener('click', () => {
+    if (!summonReady || summonUsed) {
+      showQuip(pickRandom(quips.summonLocked));
+      return;
+    }
+    summonUsed = true;
+    summonEl.classList.remove('ready');
+    summonEl.classList.add('locked');
+    summonStatusEl.textContent = 'SPENT';
+    summonChargeEl.style.transform = 'scaleX(0)';
+    showQuip(pickRandom(quips.summonFire));
+    console.log("CAST: summon");
+  });
+
+  const tracks = document.querySelectorAll('.track');
+  const nowPlayingEl = document.getElementById('now-playing');
+  let currentTrack = null;
+
+  tracks.forEach(t => {
+    t.addEventListener('click', () => {
+      const id = t.dataset.track;
+      const name = t.textContent.trim();
+      if (currentTrack === id) {
+        t.classList.remove('playing');
+        nowPlayingEl.textContent = '— silent —';
+        currentTrack = null;
+        return;
+      }
+      tracks.forEach(x => x.classList.remove('playing'));
+      t.classList.add('playing');
+      nowPlayingEl.textContent = name.replace('▶', '').trim();
+      currentTrack = id;
+      if (quips.music[id]) showQuip(pickRandom(quips.music[id]));
+      console.log("MUSIC:", id);
+    });
+  });
+</script>
+
+</body>
+</html>
